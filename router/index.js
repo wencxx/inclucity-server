@@ -375,7 +375,7 @@ router.get('/get-news', async (req, res) => {
 
         const newsWithImage = news.map(item => ({
             ...item._doc,
-            image: `http://localhost:3000/uploads/newsPic/${item.imageName}`
+            image: `${item.imageName}`
         }));
 
         res.status(200).send(newsWithImage);
