@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt')
 const fs = require('fs');
 const path = require('path')
 const multer = require('multer')
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('./cloudinaryConfig');
 // import models
 const Users = require('../models/users')
 const News = require('../models/news')
@@ -17,82 +19,63 @@ const profilePicDir = path.join(__dirname, '../uploads/profilePic');
 
 const saltRounds = 10
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/formCerts/')
+const cloudinaryCertStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+      folder: 'certificates', 
+      allowed_formats: ['jpg', 'png', 'jpeg'],
     },
-    filename: (req, file, cb) => {
-        const id = req.id.id
-        const fieldName = file.fieldname;
-        let newFileName = '';
+});
 
-        switch (fieldName) {
-            case 'photo1x1':
-                newFileName = `${id}1x1photo${path.extname(file.originalname)}`;
-                break;
-            case 'medicalCert':
-                newFileName = `${id}medicalCert${path.extname(file.originalname)}`;
-                break;
-            case 'barangayCert':
-                newFileName = `${id}barangayCert${path.extname(file.originalname)}`;
-                break;
-            default:
-                newFileName = `${Date.now()}${path.extname(file.originalname)}`;
-                break;
-        }
+const uploadCert = multer({ storage: cloudinaryCertStorage }) 
+//     destination: (req, file, cb) => {
+//         cb(null, 'uploads/formCerts/')
+//     },
+//     filename: (req, file, cb) => {
+//         const id = req.id.id
+//         const fieldName = file.fieldname;
+//         let newFileName = '';
 
-        cb(null, newFileName);
-    }
-})
+//         switch (fieldName) {
+//             case 'photo1x1':
+//                 newFileName = `${id}1x1photo${path.extname(file.originalname)}`;
+//                 break;
+//             case 'medicalCert':
+//                 newFileName = `${id}medicalCert${path.extname(file.originalname)}`;
+//                 break;
+//             case 'barangayCert':
+//                 newFileName = `${id}barangayCert${path.extname(file.originalname)}`;
+//                 break;
+//             default:
+//                 newFileName = `${Date.now()}${path.extname(file.originalname)}`;
+//                 break;
+//         }
 
-const upload = multer({ storage: storage });
+//         cb(null, newFileName);
+//     }
+// })
 
-const renewalStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/renewal')
+// const upload = multer({ storage: storage });
+
+const cloudinaryRenewalStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+      folder: 'certificates', 
+      allowed_formats: ['jpg', 'png', 'jpeg'],
     },
-    filename: (req, file, cb) => {
-        const id = req.id.id
-        const fieldName = file.fieldname;
-        let newFileName = '';
+});
 
-        switch (fieldName) {
-            case 'photo1x1':
-                newFileName = `${id}1x1photo${path.extname(file.originalname)}`;
-                break;
-            case 'medicalCert':
-                newFileName = `${id}medicalCert${path.extname(file.originalname)}`;
-                break;
-            case 'barangayCert':
-                newFileName = `${id}barangayCert${path.extname(file.originalname)}`;
-                break;
-            case 'pwdID':
-                newFileName = `${id}pwdID${path.extname(file.originalname)}`;
-                break;
-            default:
-                newFileName = `${Date.now()}${path.extname(file.originalname)}`;
-                break;
-        }
+const uploadRenewal = multer({ storage: cloudinaryRenewalStorage });
 
-        cb(null, newFileName);
-    }
-})
-
-const uploadRenewal = multer({ storage: renewalStorage });
-
-const profilePicStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/profilePic')
+const cloudinaryProfilePicStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+      folder: 'profilePic', 
+      allowed_formats: ['jpg', 'png', 'jpeg'],
     },
-    filename: (req, file, cb) => {
-        const id = req.id.id
-        let newFileName = `${id}${file.originalname}`;
+});
 
-        cb(null, newFileName);
-    }
-})
-
-const uploadNewPofile = multer({ storage: profilePicStorage });
+const uploadNewPofile = multer({ storage: cloudinaryProfilePicStorage });
 
 
 router.get('/users', async (req, res) => {
@@ -290,37 +273,30 @@ router.delete('/delete-user', authenticateToken, async (req, res) => {
 
 router.patch('/update-profilepic', authenticateToken, uploadNewPofile.single('profile'), async (req, res) => {
     const id = req.id.id;
+    const file = req.file
 
     try {
-        const user = await Users.findById(id);
-        if (!user) {
-            return res.status(404).send('User not found');
-        }
+        if (file) {
+            const user = await Users.findById(id);
 
-        const oldProfilePic = user.profile;
+            if (!user) {
+                return res.status(404).send('User not found');
+            }
 
-        user.profile = req.file.filename;
-        await user.save();
-
-        if (oldProfilePic) {
-            const oldFilePath = path.join(profilePicDir, oldProfilePic);
-            
-            fs.stat(oldFilePath, (err, stats) => {
-                if (err) {
-                    console.error("File doesn't exist or cannot be accessed:", err);
-                } else {
-                    fs.unlink(oldFilePath, (err) => {
-                        if (err) {
-                            console.error('Error deleting the old profile picture:', err);
-                        } else {
-                            console.log('Old profile picture deleted successfully');
-                        }
-                    });
-                }
+            const profileUpload = await cloudinary.uploader.upload(file.path, {
+                public_id: `${id}_profile`,
+                resource_type: 'auto'
             });
-        }
 
-        res.send(user);
+            const updateResult  = await Users.updateOne(
+                { _id: id }, 
+                { $set: { profile: profileUpload.secure_url } }
+            )
+
+            res.send(updateResult);
+            return
+        }
+        res.send('no profile pic')
     } catch (error) {
         console.error('Error updating profile picture:', error);
         res.status(500).send('An error occurred while updating the profile picture');
@@ -424,7 +400,7 @@ router.get('/get-news-details/:id', async (req, res) => {
     }
 });
 
-router.post('/send-application', authenticateToken, upload.fields([
+router.post('/send-application', authenticateToken, uploadCert.fields([
     { name: 'photo1x1', maxCount: 1 },
     { name: 'medicalCert', maxCount: 1 },
     { name: 'barangayCert', maxCount: 1 }
@@ -437,13 +413,25 @@ router.post('/send-application', authenticateToken, upload.fields([
     const applicationData = { ...formData, typeOfDisability: JSON.parse(typeOfDisability), user: id };
 
     if (files.photo1x1 && files.photo1x1[0]) {
-        applicationData.photo1x1 = `${id}_photo1x1.${files.photo1x1[0].originalname.split('.').pop()}`;
+        const photo1x1Upload = await cloudinary.uploader.upload(files.photo1x1[0].path, {
+            public_id: `${id}_photo1x1`,
+            resource_type: 'auto'
+        });
+        applicationData.photo1x1 = photo1x1Upload.secure_url;
     }
     if (files.medicalCert && files.medicalCert[0]) {
-        applicationData.medicalCert = `${id}_medicalCert.${files.medicalCert[0].originalname.split('.').pop()}`;
+        const medicalCertUpload = await cloudinary.uploader.upload(files.medicalCert[0].path, {
+            public_id: `${id}_medicalCert`,
+            resource_type: 'auto'
+        });
+        applicationData.medicalCert = medicalCertUpload.secure_url;
     }
     if (files.barangayCert && files.barangayCert[0]) {
-        applicationData.barangayCert = `${id}_barangayCert.${files.barangayCert[0].originalname.split('.').pop()}`;
+        const barangayCertUpload = await cloudinary.uploader.upload(files.barangayCert[0].path, {
+            public_id: `${id}_barangayCert`,
+            resource_type: 'auto'
+        });
+        applicationData.barangayCert = barangayCertUpload.secure_url;
     }
 
     try {
@@ -460,7 +448,7 @@ router.post('/send-application', authenticateToken, upload.fields([
             status: 'created' 
         }).status(201)
     } catch (error) {
-        console.log(error)
+        console.error(error)
     }
 })
 
@@ -478,16 +466,39 @@ router.post('/send-renewal', authenticateToken, uploadRenewal.fields([
     const applicationData = { ...formData, user: id };
 
     if (files.photo1x1 && files.photo1x1[0]) {
-        applicationData.photo1x1 = `${id}_photo1x1.${files.photo1x1[0].originalname.split('.').pop()}`;
+        const photo1x1Upload = await cloudinary.uploader.upload(files.photo1x1[0].path, {
+            public_id: `${id}_photo1x1`,
+            resource_type: 'auto'
+        });
+        applicationData.photo1x1 = photo1x1Upload.secure_url;
     }
     if (files.medicalCert && files.medicalCert[0]) {
-        applicationData.medicalCert = `${id}_medicalCert.${files.medicalCert[0].originalname.split('.').pop()}`;
+        const medicalCertUpload = await cloudinary.uploader.upload(files.medicalCert[0].path, {
+            public_id: `${id}_medicalCert`,
+            resource_type: 'auto'
+        });
+        applicationData.medicalCert = medicalCertUpload.secure_url;
     }
     if (files.barangayCert && files.barangayCert[0]) {
-        applicationData.barangayCert = `${id}_barangayCert.${files.barangayCert[0].originalname.split('.').pop()}`;
+        const barangayCertUpload = await cloudinary.uploader.upload(files.barangayCert[0].path, {
+            public_id: `${id}_barangayCert`,
+            resource_type: 'auto'
+        });
+        applicationData.barangayCert = barangayCertUpload.secure_url;
     }
     if (files.pwdID && files.pwdID[0]) {
-        applicationData.pwdID = `${id}_pwdID.${files.pwdID[0].originalname.split('.').pop()}`;
+        const barangayCertUpload = await cloudinary.uploader.upload(files.barangayCert[0].path, {
+            public_id: `${id}_barangayCert`,
+            resource_type: 'auto'
+        });
+        applicationData.barangayCert = barangayCertUpload.secure_url;
+    }
+    if (files.pwdID && files.pwdID[0]) {
+        const pwdIDCertUpload = await cloudinary.uploader.upload(files.pwdIDCert[0].path, {
+            public_id: `${id}_barangayCert`,
+            resource_type: 'auto'
+        });
+        applicationData.pwdID = pwdIDCertUpload.secure_url;
     }
 
     try {
