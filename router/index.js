@@ -132,7 +132,7 @@ To complete your verification process, please use the following One-Time Passwor
 
 ${otp}
 
-This OTP is valid for the next 10 minutes. Please do not share this code with anyone for security reasons.
+This OTP is valid for the next 5 minutes. Please do not share this code with anyone for security reasons.
 
 If you did not request this OTP, please contact our support team immediately.
 
@@ -190,7 +190,7 @@ router.post('/login', async (req, res) => {
         }
 
     } catch (error) {
-        
+        console.log(error)
     }
 })
 
@@ -408,9 +408,9 @@ router.post('/send-application', authenticateToken, uploadCert.fields([
     const id = req.id.id
 
     const files = req.files
-    const { photo1x1, barangayCert, medicalCert, typeOfDisability, ...formData } = req.body; 
+    const { photo1x1, barangayCert, medicalCert, ...formData } = req.body; 
 
-    const applicationData = { ...formData, typeOfDisability: JSON.parse(typeOfDisability), user: id };
+    const applicationData = { ...formData, user: id };
 
     if (files.photo1x1 && files.photo1x1[0]) {
         const photo1x1Upload = await cloudinary.uploader.upload(files.photo1x1[0].path, {
@@ -554,5 +554,68 @@ router.post('/check-control-number', authenticateToken, async (req, res) => {
     }
 })
 
+// admin
+router.get('/get-all-users', authenticateToken, async (req, res) => {
+    const id = req.id.id
+
+    try {
+        const user = await Users.find()
+
+        if(user.length <= 0) return res.send('no users found')
+
+        res.send(user).status(200)
+    } catch (error) {
+        console.log(error)
+        res.send(error.message)
+    }
+})
+
+router.get('/get-all-pending-applications', authenticateToken, async (req, res) => {
+
+    try {
+        const application = await Applications.find({
+            status: 'pending'
+        }).populate('user')
+
+        if(application.length <= 0) return res.send('no data')
+
+        res.send(application)
+    } catch (error) {
+        console.error(error)
+        res.send(error)
+    }
+})
+
+router.get('/get-all-approved-applications', authenticateToken, async (req, res) => {
+
+    try {
+        const application = await Applications.find({
+            status: 'approved'
+        }).populate('user')
+
+        if(application.length <= 0) return res.send('no data')
+
+        res.send(application)
+    } catch (error) {
+        console.error(error)
+        res.send(error)
+    }
+})
+
+router.get('/get-all-expired-applications', authenticateToken, async (req, res) => {
+
+    try {
+        const application = await Applications.find({
+            status: 'expired'
+        }).populate('user')
+
+        if(application.length <= 0) return res.send('no data')
+
+        res.send(application)
+    } catch (error) {
+        console.error(error)
+        res.send(error)
+    }
+})
 
 module.exports = router

@@ -9,7 +9,7 @@ const formSchema = new mongoose.Schema({
     dateOfBirth: String,
     gender: String,
     civilStatus: String,
-    typeOfDisability: [String],
+    typeOfDisability: String,
     causeOfDisability: String,
     otherCauseOfDisability: String,
     houseNoAndStreet: String,
