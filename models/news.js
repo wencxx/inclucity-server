@@ -5,6 +5,10 @@ const newsSchema = new mongoose.Schema({
     postDescription: String,
     postUrl: [String],
     imageName: String,
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     datePosted: {
         type: Date,
         default: Date.now

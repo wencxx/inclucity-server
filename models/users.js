@@ -13,6 +13,10 @@ const usersSchema = new mongoose.Schema({
         type: String,
         default: 'user'
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     dateAdded: {
         type: Date,
         default: Date.now

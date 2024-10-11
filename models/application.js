@@ -54,9 +54,13 @@ const formSchema = new mongoose.Schema({
     photo1x1: String,
     medicalCert: String,
     barangayCert: String,
+    form: String,
     status: {
         type: String,
         default: 'pending'
+    },
+    reasonForRejection: {
+        type: String
     },
     applicationNumber: Number,
     controlNumber: String,
@@ -88,6 +92,13 @@ const formSchema = new mongoose.Schema({
     acceptedBarangayCert: {
         type: Boolean,
         default: true
+    },
+    isIdReleased: {
+        type: Boolean,
+        default: false
+    },
+    approvedAt: {
+        type: Date
     }
 
 })
