@@ -461,8 +461,9 @@ router.post('/send-application', authenticateToken, uploadCert.fields([
     try {
 
         const existingForm = await Applications.findOne({
-            user: id
-        })
+            user: id,
+            status: { $ne: 'expired' }
+        });
 
         if(existingForm) return res.send('already submitted')
         const newApplicant = await Applications.create(applicationData)
@@ -548,7 +549,7 @@ router.get('/get-user-application', authenticateToken, async (req, res) => {
     try {
         const application = await Applications.findOne({
             user: req.id.id
-        }).populate('user')
+        }).populate('user').sort({ dateApplied: -1 })
 
         if(!application) return res.send('no data')
 
